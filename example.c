@@ -1,3 +1,5 @@
+// Leonardo Matthew Knight
+
 #include "FreeRTOS.h"
 #include "task.h"
 #include "basic_io.h"
@@ -53,7 +55,7 @@ void taskGuinada(void* param) {
 			increment_motor(mutex3, &motor3);
 			decrement_motor(mutex2, &motor2);
 			decrement_motor(mutex4, &motor4);
-			print_motors_information("Guinada");
+			print_motors_information("Guinada | horario");
 			vTaskDelay(delay);
 		}
 	}
@@ -66,7 +68,7 @@ void taskGuinada(void* param) {
 			decrement_motor(mutex3, &motor3);
 			increment_motor(mutex2, &motor2);
 			increment_motor(mutex4, &motor4);
-			print_motors_information("Guinada");
+			print_motors_information("Guinada | anti-horario");
 			vTaskDelay(delay);
 		}
 	}
@@ -89,7 +91,7 @@ void taskRolagem(void* param) {
 			decrement_motor(mutex4, &motor4);
 			increment_motor(mutex2, &motor3);
 			increment_motor(mutex3, &motor3);
-			print_motors_information("Rolagem");
+			print_motors_information("Rolagem | esquerda");
 			vTaskDelay(delay);
 		}
 	}
@@ -102,7 +104,7 @@ void taskRolagem(void* param) {
 			decrement_motor(mutex3, &motor3);
 			increment_motor(mutex1, &motor1);
 			increment_motor(mutex4, &motor4);
-			print_motors_information("Rolagem");
+			print_motors_information("Rolagem | direita");
 			vTaskDelay(delay);
 		}
 	}
@@ -125,7 +127,7 @@ void taskArfagem(void* param) {
 			increment_motor(mutex4, &motor4);
 			decrement_motor(mutex1, &motor1);
 			decrement_motor(mutex2, &motor2);
-			print_motors_information("Arfagem");
+			print_motors_information("Arfagem | frente");
 			vTaskDelay(delay);
 		}
 	}
@@ -138,7 +140,7 @@ void taskArfagem(void* param) {
 			increment_motor(mutex2, &motor2);
 			decrement_motor(mutex3, &motor3);
 			decrement_motor(mutex4, &motor4);
-			print_motors_information("Arfagem");
+			print_motors_information("Arfagem | tras");
 			vTaskDelay(delay);
 		}
 	}
