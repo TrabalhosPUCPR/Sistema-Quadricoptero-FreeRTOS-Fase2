@@ -27,9 +27,9 @@ int main_() {
 	mutex4 = xSemaphoreCreateMutex();
 
 	// passando 0 como parametro para todos
-	xTaskCreate(taskGuinada, "guinada", 1000, 0, 1, NULL);
-	xTaskCreate(taskRolagem, "rolagem", 1000, 0, 1, NULL);
-	xTaskCreate(taskArfagem, "arfagem", 1000, 0, 1, NULL);
+	xTaskCreate(taskGuinada, "guinada", 1000, (void*)0, 1, NULL);
+	xTaskCreate(taskRolagem, "rolagem", 1000, (void*)0, 1, NULL);
+	xTaskCreate(taskArfagem, "arfagem", 1000, (void*)0, 1, NULL);
 
 	// inicia o escalonador
 	vTaskStartScheduler();
@@ -45,7 +45,7 @@ void taskGuinada(void* param) {
 	const TickType_t delay = 10 / portTICK_PERIOD_MS;
 	const int job = (int)param;
 	// se for sentido horario ( 0 ), inicia o loop para essa funcao, caso contrario, inicia para anti-horario
-	// mesma coisa para as outras tasks, diferenca é só o nome e quais motores modifica
+	// mesma coisa para as outras tasks, diferenca Ã© sÃ³ o nome e quais motores modifica
 	if (job == 0) {
 		vPrintString("Task Guinada executando manobra em sentido horario\n");
 		for (;;) {
@@ -148,15 +148,15 @@ void taskArfagem(void* param) {
 }
 
 /*
-	FUNCAO INLINE = COMPILADOR COLOCA ESSE BLOCO DE CODIGO DIRETO ONDE A FUNCAO É CHAMADA
+	FUNCAO INLINE = COMPILADOR COLOCA ESSE BLOCO DE CODIGO DIRETO ONDE A FUNCAO Ã‰ CHAMADA
 
-	apenas para nao precisar ficar dando ctrl c + v do que basicamente é a mesma coisa.
+	apenas para nao precisar ficar dando ctrl c + v do que basicamente Ã© a mesma coisa.
 
 	funcao recebe um ponteiro para um numero inteiro para mudar aquele ponto da memoria.
 */
 inline void decrement_motor(SemaphoreHandle_t m_handle, int* motor) {
 	if (xSemaphoreTake(m_handle, portMAX_DELAY) == pdTRUE) {
-		*motor = *motor - 1; // deref do ponteiro para mudar o valor no ponto da memória que ele esta apontando
+		*motor = *motor - 1; // deref do ponteiro para mudar o valor no ponto da memÃ³ria que ele esta apontando
 		xSemaphoreGive(m_handle);
 	}
 }
