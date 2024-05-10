@@ -21,13 +21,19 @@
 	0 = ESQUERDA
 	1 (ou qualquer outro numero) = DIREITA
 */
+#define SENTIDO_HORARIO_NUMBER 0
+#define SENTIDO_ANTI_HORARIO_NUMBER 1
+#define DIRECAO_FRENTE_NUMBER 0
+#define DIRECAO_TRAS_NUMBER 1
+#define ORIENTACAO_ESQUERDA_NUMBER 0
+#define ORIENTACAO_DIREITA_NUMBER 1
 
-#define SENTIDO_HORARIO 0
-#define SENTIDO_ANTI_HORARIO 1
-#define DIRECAO_FRENTE 0
-#define DIRECAO_TRAS 1
-#define ORIENTACAO_ESQUERDA 1
-#define ORIENTACAO_DIREITA 0
+#define SENTIDO_HORARIO "horario"
+#define SENTIDO_ANTI_HORARIO "anti_horario"
+#define DIRECAO_FRENTE "frente"
+#define DIRECAO_TRAS "tras"
+#define ORIENTACAO_ESQUERDA "esquerda"
+#define ORIENTACAO_DIREITA "direita"
 
 void taskGuinada(void* param);
 void taskRolagem(void* param);
@@ -45,12 +51,13 @@ void print_motors_information(char* task_name);
 volatile int motor1, motor2, motor3, motor4 = 0;
 
 // 3 inteiros para cada manobra, com valor inicial estando no main
+// tamanho 12 pq o anti_horario tem 12 caracteres
 struct Manobras {
-	int sentido;
-	int direcao;
-	int orientacao;
+	char sentido[13];
+	char direcao[13];
+	char orientacao[13];
 };
-struct Manobras manobras;
+volatile struct Manobras manobras;
 SemaphoreHandle_t sem1, sem2, sem3, sem4, man;
 
 int main_() {
@@ -62,6 +69,12 @@ int main_() {
 	sem4 = xSemaphoreCreateBinary();
 	man = xSemaphoreCreateBinary();
 
+	xSemaphoreGive(sem1);
+	xSemaphoreGive(sem2);
+	xSemaphoreGive(sem3);
+	xSemaphoreGive(sem4);
+	xSemaphoreGive(man);
+
 	srand(570);
 
 	if (sem1 == NULL || sem2 == NULL || sem3 == NULL || sem4 == NULL) {
@@ -71,13 +84,13 @@ int main_() {
 
 	// manobras iniciais, mudar aqui
 	struct Manobras manobraInicial;
-	manobraInicial.direcao = DIRECAO_FRENTE;
-	manobraInicial.orientacao = ORIENTACAO_DIREITA;
-	manobraInicial.sentido = SENTIDO_HORARIO;
+	sprintf(manobraInicial.direcao, DIRECAO_FRENTE);
+	sprintf(manobraInicial.orientacao, ORIENTACAO_DIREITA);
+	sprintf(manobraInicial.sentido, SENTIDO_HORARIO);
 
-	xTaskCreate(taskGuinada, "guinada", 1000, NULL, 2, NULL);
-	xTaskCreate(taskRolagem, "rolagem", 1000, NULL, 2, NULL);
-	xTaskCreate(taskArfagem, "arfagem", 1000, NULL, 2, NULL);
+	xTaskCreate(taskGuinada, "guinada", 1000, (void*)manobraInicial.sentido, 2, NULL);
+	xTaskCreate(taskRolagem, "rolagem", 1000, (void*)manobraInicial.orientacao, 2, NULL);
+	xTaskCreate(taskArfagem, "arfagem", 1000, (void*)manobraInicial.direcao, 2, NULL);
 	xTaskCreate(taskRadioFrequencia, "radio frequencia", 1000, (void*)&manobraInicial, 1, NULL); // passamos a referencia da struct
 
 	// inicia o escalonador
@@ -88,30 +101,30 @@ int main_() {
 
 void taskGuinada(void* param) {
 	const TickType_t delay = 10 * portTICK_PERIOD_MS; // delay constante para ser usado no loop
+	char* sentido = (char*)param;
 	for (;;) {
+		if (strcmp(sentido, SENTIDO_HORARIO) == 0) {
+			// diminuindo motores 2 e 4
+			// aumentando motores 1 e 3
+			increment_motor(sem1, &motor1);
+			increment_motor(sem3, &motor3);
+			decrement_motor(sem2, &motor2);
+			decrement_motor(sem4, &motor4);
+			print_motors_information("Guinada | horario");
+		}
+		else {
+			// diminuindo motores 1 e 3
+			// aumentando motores 2 e 4
+			decrement_motor(sem1, &motor1);
+			decrement_motor(sem3, &motor3);
+			increment_motor(sem2, &motor2);
+			increment_motor(sem4, &motor4);
+			print_motors_information("Guinada | anti-horario");
+		}
+		vTaskDelay(delay);
 		if (xSemaphoreTake(man, portMAX_DELAY) == pdTRUE) { // take no semaforo para obter as manobras de forma concorrente
-			// o resto é auto explicativo
-			if (manobras.sentido == SENTIDO_HORARIO) {
-				xSemaphoreGive(man);
-				// diminuindo motores 2 e 4
-				// aumentando motores 1 e 3
-				increment_motor(sem1, &motor1);
-				increment_motor(sem3, &motor3);
-				decrement_motor(sem2, &motor2);
-				decrement_motor(sem4, &motor4);
-				print_motors_information("Guinada | horario");
-			}
-			else {
-				xSemaphoreGive(man);
-				// diminuindo motores 1 e 3
-				// aumentando motores 2 e 4
-				decrement_motor(sem1, &motor1);
-				decrement_motor(sem3, &motor3);
-				increment_motor(sem2, &motor2);
-				increment_motor(sem4, &motor4);
-				print_motors_information("Guinada | anti-horario");
-			}
-			vTaskDelay(delay);
+			sprintf(sentido, manobras.sentido);
+			xSemaphoreGive(man);
 		}
 	}
 	vTaskDelete(NULL);
@@ -119,29 +132,30 @@ void taskGuinada(void* param) {
 
 void taskRolagem(void* param) {
 	const TickType_t delay = 20 * portTICK_PERIOD_MS;
+	char* orientacao = (char*)param;
 	for (;;) {
+		if (strcmp(orientacao, ORIENTACAO_ESQUERDA) == 0) {
+			// diminuindo motores 1 e 4
+			// aumentando motores 2 e 3
+			decrement_motor(sem1, &motor1);
+			decrement_motor(sem4, &motor4);
+			increment_motor(sem2, &motor3);
+			increment_motor(sem3, &motor3);
+			print_motors_information("Rolagem | esquerda");
+		}
+		else {
+			// diminuindo motores 2 e 3
+			// aumentando motores 1 e 4
+			decrement_motor(sem2, &motor2);
+			decrement_motor(sem3, &motor3);
+			increment_motor(sem1, &motor1);
+			increment_motor(sem4, &motor4);
+			print_motors_information("Rolagem | direita");
+		}
+		vTaskDelay(delay);
 		if (xSemaphoreTake(man, portMAX_DELAY) == pdTRUE) {
-			if (manobras.orientacao == ORIENTACAO_ESQUERDA) {
-				xSemaphoreGive(man);
-				// diminuindo motores 1 e 4
-				// aumentando motores 2 e 3
-				decrement_motor(sem1, &motor1);
-				decrement_motor(sem4, &motor4);
-				increment_motor(sem2, &motor3);
-				increment_motor(sem3, &motor3);
-				print_motors_information("Rolagem | esquerda");
-			}
-			else {
-				xSemaphoreGive(man);
-				// diminuindo motores 2 e 3
-				// aumentando motores 1 e 4
-				decrement_motor(sem2, &motor2);
-				decrement_motor(sem3, &motor3);
-				increment_motor(sem1, &motor1);
-				increment_motor(sem4, &motor4);
-				print_motors_information("Rolagem | direita");
-			}
-			vTaskDelay(delay);
+			sprintf(orientacao, manobras.orientacao);
+			xSemaphoreGive(man);
 		}
 	}
 	vTaskDelete(NULL);
@@ -149,49 +163,59 @@ void taskRolagem(void* param) {
 
 void taskArfagem(void* param) {
 	const TickType_t delay = 40 * portTICK_PERIOD_MS;
+	char* direcao = (char*)param;
 	for (;;) {
+		if (strcmp(direcao, DIRECAO_FRENTE) == 0) {
+			// diminuindo motores 1 e 2
+			// aumentando motores 3 e 4
+			increment_motor(sem3, &motor3);
+			increment_motor(sem4, &motor4);
+			decrement_motor(sem1, &motor1);
+			decrement_motor(sem2, &motor2);
+			print_motors_information("Arfagem | frente");
+		}
+		else {
+			// diminuindo motores 3 e 4
+			// aumentando motores 1 e 2
+			increment_motor(sem1, &motor1);
+			increment_motor(sem2, &motor2);
+			decrement_motor(sem3, &motor3);
+			decrement_motor(sem4, &motor4);
+			print_motors_information("Arfagem | tras");
+		}
+		vTaskDelay(delay);
 		if (xSemaphoreTake(man, portMAX_DELAY) == pdTRUE) {
-			if (manobras.direcao == DIRECAO_FRENTE) {
-				xSemaphoreGive(man);
-				// diminuindo motores 1 e 2
-				// aumentando motores 3 e 4
-				increment_motor(sem3, &motor3);
-				increment_motor(sem4, &motor4);
-				decrement_motor(sem1, &motor1);
-				decrement_motor(sem2, &motor2);
-				print_motors_information("Arfagem | frente");
-			}
-			else {
-				xSemaphoreGive(man);
-				// diminuindo motores 3 e 4
-				// aumentando motores 1 e 2
-				increment_motor(sem1, &motor1);
-				increment_motor(sem2, &motor2);
-				decrement_motor(sem3, &motor3);
-				decrement_motor(sem4, &motor4);
-				print_motors_information("Arfagem | tras");
-			}
-			vTaskDelay(delay);
+			sprintf(direcao, manobras.direcao);
+			xSemaphoreGive(man);
 		}
 	}
 	vTaskDelete(NULL);
 }
 
 void taskRadioFrequencia(void* param) {
-	xSemaphoreGive(man); 
 	const TickType_t delay = 100 * portTICK_PERIOD_MS;
 	update_manobras(*(struct Manobras*)param); // primeira coisa que fazemos é atualizar as manobras com o que foi passado como parametro
-	// ligamos apos setar as manobras iniciais, sinalizando que o radio "ligou"
-	xSemaphoreGive(sem1);
-	xSemaphoreGive(sem2);
-	xSemaphoreGive(sem3);
-	xSemaphoreGive(sem4);
 	vTaskDelay(delay); // damos um delay para nao sobreescrever as manobras iniciais logo de primeira
 	for (;;) { // inicia o loop, sobreescrevendo as manobras uma nova de forma aleatória.
 		struct Manobras new_manobras;
-		new_manobras.direcao = (rand() % 100) % 2;
-		new_manobras.orientacao = (rand() % 100) % 2;
-		new_manobras.sentido = (rand() % 100) % 2;
+		if ((rand() % 100) % 2 == DIRECAO_FRENTE_NUMBER) {
+			sprintf(new_manobras.direcao, DIRECAO_FRENTE);
+		}
+		else {
+			sprintf(new_manobras.direcao, DIRECAO_TRAS);
+		}
+		if ((rand() % 100) % 2 == ORIENTACAO_DIREITA_NUMBER) {
+			sprintf(new_manobras.orientacao, ORIENTACAO_DIREITA);
+		}
+		else {
+			sprintf(new_manobras.orientacao, ORIENTACAO_ESQUERDA);
+		}
+		if ((rand() % 100) % 2 == SENTIDO_ANTI_HORARIO_NUMBER) {
+			sprintf(new_manobras.sentido, SENTIDO_ANTI_HORARIO);
+		}
+		else {
+			sprintf(new_manobras.sentido, SENTIDO_HORARIO);
+		}
 		update_manobras(new_manobras);
 		vTaskDelay(delay);
 	}
@@ -229,27 +253,12 @@ inline void increment_motor(SemaphoreHandle_t m_handle, int* motor) { // essa fu
 */
 void update_manobras(struct Manobras m) {
 	if (xSemaphoreTake(man, portMAX_DELAY) == pdTRUE) {
-		if (m.sentido == SENTIDO_HORARIO) {
-			vPrintString("Sentido horario\n");
-		}
-		else {
-			vPrintString("Sentido anti-horario\n");
-		}
-		if (m.orientacao == ORIENTACAO_ESQUERDA) {
-			vPrintString("Orientacao Esquerda\n");
-		}
-		else {
-			vPrintString("Orientacao direita\n");
-		}
-		if (m.direcao == DIRECAO_FRENTE) {
-			vPrintString("Direcao frente\n");
-		}
-		else {
-			vPrintString("Direcao tras\n");
-		}
-		manobras.direcao = m.direcao;
-		manobras.orientacao = m.orientacao;
-		manobras.sentido = m.sentido;
+		printf("Direcao %s\n", m.direcao);
+		printf("Sentido %s\n", m.sentido);
+		printf("Orientacao %s\n", m.orientacao);
+		sprintf(manobras.direcao, m.direcao);
+		sprintf(manobras.orientacao, m.orientacao);
+		sprintf(manobras.sentido, m.sentido);
 		xSemaphoreGive(man);
 	}
 }
