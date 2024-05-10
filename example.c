@@ -11,11 +11,9 @@
 	0 = SENTIDO HORARIO
 	1 (ou qualquer outro numero) = SENTIDO ANTI-HORARIO
 
-
 	ARFAGEM - DIRECAO:
 	0 = FRENTE
 	1 (ou qualquer outro numero) = TRAS
-
 
 	ROLAGEM - ORIENTACAO
 	0 = ESQUERDA
@@ -51,11 +49,11 @@ void print_motors_information(char* task_name);
 volatile int motor1, motor2, motor3, motor4 = 0;
 
 // 3 inteiros para cada manobra, com valor inicial estando no main
-// tamanho 12 pq o anti_horario tem 12 caracteres
+// tamanho 13 pq o anti_horario tem 12 caracteres + character a de string
 struct Manobras {
-	char sentido[13];
-	char direcao[13];
-	char orientacao[13];
+	volatile char sentido[13];
+	volatile char direcao[13];
+	volatile char orientacao[13];
 };
 volatile struct Manobras manobras;
 SemaphoreHandle_t sem1, sem2, sem3, sem4, man;
@@ -88,6 +86,7 @@ int main_() {
 	sprintf(manobraInicial.orientacao, ORIENTACAO_DIREITA);
 	sprintf(manobraInicial.sentido, SENTIDO_HORARIO);
 
+	// passando valor de cada campo da struct acima para suas respectivas tasks
 	xTaskCreate(taskGuinada, "guinada", 1000, (void*)manobraInicial.sentido, 2, NULL);
 	xTaskCreate(taskRolagem, "rolagem", 1000, (void*)manobraInicial.orientacao, 2, NULL);
 	xTaskCreate(taskArfagem, "arfagem", 1000, (void*)manobraInicial.direcao, 2, NULL);
@@ -229,7 +228,7 @@ void taskRadioFrequencia(void* param) {
 /*
 	Funcao de conveniencia para diminuir o valor de um motor em 1 de forma concorrente
 */
-inline void decrement_motor(SemaphoreHandle_t m_handle, int* motor) {
+inline void decrement_motor(SemaphoreHandle_t m_handle, volatile int* motor) {
 	if (xSemaphoreTake(m_handle, portMAX_DELAY) == pdTRUE) {
 		*motor = *motor - 1; // deref do ponteiro para mudar o valor no ponto da memória que ele esta apontando
 		xSemaphoreGive(m_handle);
@@ -239,7 +238,7 @@ inline void decrement_motor(SemaphoreHandle_t m_handle, int* motor) {
 /*
 	Funcao de conveniencia para aumentar o valor de um motor em 1 de forma concorrente
 */
-inline void increment_motor(SemaphoreHandle_t m_handle, int* motor) { // essa funcao é igual ao de cima, só muda o - para +
+inline void increment_motor(SemaphoreHandle_t m_handle, volatile int* motor) { // essa funcao é igual ao de cima, só muda o - para +
 	if (xSemaphoreTake(m_handle, portMAX_DELAY) == pdTRUE) {
 		*motor = *motor + 1;
 		xSemaphoreGive(m_handle);
